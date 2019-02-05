@@ -1,6 +1,6 @@
 # Distributed EEG source imaging toolbox for MATLAB/EEGLAB
 
-![splash](https://github.com/aojeda/dsi/blob/master/doc/splash.png)
+![splash](https://github.com/aojeda/dsi/blob/master/doc/gui.png)
 
 The DSI toolbox for is a metapackage that combines the [headModel](https://github.com/aojeda/headModel#headmodel-toolbox-for-matlabeeglab) and the [PEB+](https://github.com/aojeda/PEB) toolboxes into one coherent plugin for forward and inverse distributed source imaging within the [EEGLAB](https://sccn.ucsd.edu/eeglab/) environment.
 
