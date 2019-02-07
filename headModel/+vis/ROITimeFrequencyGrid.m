@@ -25,7 +25,7 @@ classdef  ROITimeFrequencyGrid < vis.headModelViewer
             set(obj.hScalp,'Visible','off')
             set(obj.hSkull,'Visible','off')
             view(obj.hAxes,[-90 90])
-            set(obj.hFigure,'units','normalized','outerposition',[0 0 1 1])
+            set(obj.hFigure,'units','normalized','outerposition',[0 0 1 1],'Name',figureTitle);
             skinColor = [1,.75,.65];
             obj.hCortexL.FaceVertexCData = repmat(skinColor, size(obj.hCortexL.FaceVertexCData,1),1);
             obj.hCortexR.FaceVertexCData = repmat(skinColor, size(obj.hCortexR.FaceVertexCData,1),1);
