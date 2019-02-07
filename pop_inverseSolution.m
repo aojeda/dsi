@@ -1,9 +1,9 @@
-function EEG = pop_inverseSolution(EEG, windowSize, overlaping, solverType, saveFull, account4artifacts, postprocCallback, src2roiReductionType)
+function EEG = pop_inverseSolution(EEG, windowSize, overlaping, solverType, saveFull, account4artifacts, src2roiReductionType, postprocCallback)
 persistent solver
 
 if nargin < 1, error('Not enough input arguments.');end
-if nargin < 5
-    answer = inputdlg({'Window size','Overlaping (%)', 'Solver type', 'Save full PCD','Account for artifacts'},'pop_inverseSolution',1,{num2str(round((40/1000)*EEG.srate)),'25', 'bsbl', 'true', 'true'});
+if nargin < 7
+    answer = inputdlg({'Window size','Overlaping (%)', 'Solver type (bsbl)', 'Save full PCD (true/false)','Account for artifacts (true/false)', 'Source ROI type (ksdensity, hist, or mean)'},'pop_inverseSolution',1,{num2str(round((40/1000)*EEG.srate)),'25', 'bsbl', 'true', 'true','ksdensity'});
     if isempty(answer)
         return;
     else
@@ -12,6 +12,7 @@ if nargin < 5
         solverType = lower(answer{3});
         saveFull = str2num(lower(answer{4})); %#ok
         account4artifacts = str2num(lower(answer{5})); %#ok
+        src2roiReductionType = lower(answer{6});
     end
 end
 if ~isnumeric(windowSize)
@@ -34,16 +35,18 @@ if ~islogical(account4artifacts)
     disp('Invalid input for account4artifacts parameter, we will use the default value.')
     account4artifacts= true;
 end
-if nargin < 7, postprocCallback = [];end
-if nargin < 8, src2roiReductionType = 'unbiased';end
+if ~any(ismember({'ksdensity','hist','mean'},src2roiReductionType))
+    src2roiReductionType = 'ksdensity';
+end
+if nargin < 8, postprocCallback = [];end
+
 overlaping = overlaping/100;
 
 % Load the head model
 try
     hm = headModel.loadFromFile(EEG.etc.src.hmfile);
 catch
-    h = errordlg('EEG.etc.src.hmfile seems to be corrupted or missing, to set it right next we will run >> EEG = pop_forwardModel(EEG)');
-    waitfor(h);
+    warning('EEG.etc.src.hmfile seems to be corrupted or missing, to set it right next we will run >> EEG = pop_forwardModel(EEG)');
     EEG = pop_forwardModel(EEG);
     try
         hm = headModel.loadFromFile(EEG.etc.src.hmfile);
@@ -124,7 +127,19 @@ logE = zeros([length(1:windowSize:EEG.pnts),EEG.trials]);
 lambda = zeros([length(1:windowSize:EEG.pnts),EEG.trials]);
 gamma = zeros([solver.Ng,length(1:windowSize:EEG.pnts),EEG.trials]);
 indGamma = EEG.times(1:windowSize:EEG.pnts);
-b = filterDesign(EEG.srate,round(EEG.srate/10));
+
+% Find out if the data have being filtered and quarantee that the source time
+% series does not have high frequency components due to batch processing
+[Pxx, freq] = pmtm(EEG.data(:,:,1)',2.5,EEG.srate,EEG.srate);
+[h,~,ci] = ttest(mean(10*log10(Pxx),2));
+if h
+    % Find cutoff
+    cutoff = freq(find(mean(10*log10(Pxx),2) < ci(2),1))-1;
+else
+    % Otherwise use the Nyquist frequency (-20 Hz so that we are not borderline at Nyquist)
+    cutoff = floor(EEG.srate/2)-20;
+end
+b = filterDesign(EEG.srate,cutoff, round(EEG.srate/10));
 
 % Perform source estimation
 fprintf('PEB source estimation...\n');
@@ -166,6 +181,7 @@ for trial=1:EEG.trials
         if ~isempty(prc), fprintf('%i%%',prc*10);end
         c = c+1;
     end
+    X(:,:,trial) = filtfilt(b,1,X(:,:,trial)')';
     
     % Compute average ROI time series
     X_roi(:,:,trial) = computeSourceROI(X, indG, trial, P, isVect, src2roiReductionType);
@@ -245,7 +261,7 @@ if strcmp(src2roiReductionType,'mean')
             end
         end
     end
-elseif strcmp(src2roiReductionType,'unbiased')
+elseif strcmp(src2roiReductionType,'ksdensity')
     delta = 5;
     for r=1:Nroi
         for k=1:delta:Nt
@@ -257,6 +273,22 @@ elseif strcmp(src2roiReductionType,'unbiased')
                 xv = X(indG(blocks(r,:)),ind, trial);
             end
             [fx, xi] = ksdensity(xv(:));
+            Px = griddedInterpolant(xi,fx/sum(fx));
+            x_roi(r,ind) = sum(reshape(xv(:).*Px(xv(:)),size(xv)));
+        end
+    end
+elseif strcmp(src2roiReductionType,'hist')
+    delta = 5;
+    for r=1:Nroi
+        for k=1:delta:Nt
+            ind = k:k+delta-1;
+            ind(ind>Nt) = [];
+            if isVect
+                xv = abs(X(indG(blocks(r,:)),ind, trial));
+            else
+                xv = X(indG(blocks(r,:)),ind, trial);
+            end
+            [fx, xi] = hist(xv(:),100);
             Px = griddedInterpolant(xi,fx/sum(fx));
             x_roi(r,ind) = sum(reshape(xv(:).*Px(xv(:)),size(xv)));
         end
@@ -276,7 +308,7 @@ end
 end
 
 %%
-function b = filterDesign(Fs,N)
+function b = filterDesign(Fs,Fc,N)
 if nargin < 2
     N = 16;              % Order;
 end
@@ -284,7 +316,6 @@ end
 % FIR Window Lowpass filter designed using the FIR1 function.
 % All frequency values are in Hz.
 
-Fc   = floor(Fs/2)-20;  % Cutoff Frequency
 flag = 'scale';         % Sampling Flag
 Beta = 0.5;             % Window Parameter
 
