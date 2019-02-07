@@ -9,11 +9,9 @@
 function vers = eegplugin_dsi(fig,try_strings, catch_strings)
 vers = 'DIS1.0.0';
 p = fileparts(which('eegplugin_dsi'));
-addpath(fullfile(p,'hadModel'));
-addpath(fullfile(p,'hadModel','resources'));
-addpath(fullfile(p,'hadModel','+vis'));
-addpath(fullfile(p,'hadModel','+geometricTools'));
-addpath(genpath(fullfile(p,'hadModel','dependency')));
+addpath(fullfile(p,'headModel'));
+addpath(fullfile(p,'headModel','resources'));
+addpath(genpath(fullfile(p,'headModel','dependency')));
 addpath(fullfile(p,'PEB'));
 addpath(fullfile(p,'PEB','invChol'));
 addpath(fullfile(p,'PEB','resources'));
