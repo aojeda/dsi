@@ -1,4 +1,4 @@
-function I = pmi(X)
+function I = pairwiseMutualInformation(X)
 X = X(:,:);
 n = size(X,1);
 I = zeros(n);
