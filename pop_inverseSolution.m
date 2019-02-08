@@ -83,7 +83,9 @@ else
             solver = PEB(H, Delta, blocks); 
         end
     catch ME
-        disp(ME)
+        if ~strcmp(ME.identifier,'MATLAB:dimagree')
+            disp(ME);
+        end
         solver = PEB(H, Delta, blocks);
     end
 end
@@ -134,11 +136,12 @@ indGamma = EEG.times(1:windowSize:EEG.pnts);
 [h,~,ci] = ttest(mean(10*log10(Pxx),2));
 if h
     % Find cutoff
-    cutoff = freq(find(mean(10*log10(Pxx),2) < ci(2),1))-1;
+    cutoff = freq(find(mean(10*log10(Pxx),2) < ci(2) & freq > 3,1))-1;
 else
     % Otherwise use the Nyquist frequency (-20 Hz so that we are not borderline at Nyquist)
     cutoff = floor(EEG.srate/2)-20;
 end
+cutoff(cutoff==-1) = floor(EEG.srate/2)-20;
 b = filterDesign(EEG.srate,cutoff, round(EEG.srate/10));
 
 % Perform source estimation
