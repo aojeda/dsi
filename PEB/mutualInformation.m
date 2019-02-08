@@ -1,4 +1,4 @@
-function I = mutualInformation(x,y)
+function I = mutualInformation(x,y, pdfType)
 % Compute the mutual information (in nats) between continuous random variables x and
 % y.
 %
@@ -20,9 +20,23 @@ function I = mutualInformation(x,y)
 %
 % Author: Alejandro Ojeda, Neural Engineering and Translation Labs, University of California San Diego, 2019
 
-[px, xi]   = ksdensity(x);
-[py, yi]   = ksdensity(y);
-[pxy, xyi] = ksdensity([x(:),y(:)]);
+if nargin < 3, pdfType = 'ksdensity';end
+if ~any(ismember({'ksdensity','hist'},lower(pdfType)))
+    pdfType = 'ksdensity';
+end
+
+if strcmpi(pdfType,'ksdensity')
+    [px, xi]   = ksdensity(x);
+    [py, yi]   = ksdensity(y);
+    [pxy, xyi] = ksdensity([x(:),y(:)]);
+else
+    [px, xi]   = hist(x,100);
+    [py, yi]   = hist(y,100);
+    [pxy, xyi] = hist3([x(:),y(:)],[30 30]);
+    pxy = pxy(:);
+    [Sx,Sy] = meshgrid(xyi{1},xyi{2});
+    xyi = [Sx(:),Sy(:)];
+end
 
 % Normalize the pdfs
 px = px/sum(px);
