@@ -55,6 +55,6 @@ else
 end
 miCalc.setProperty('k', num2str(k)); 
 miCalc.setProperty('NORMALISE', normalize);
-miCalc.setObservations(x, y);
+miCalc.setObservations(x(:), y(:));
 I = miCalc.computeAverageLocalOfObservations();
 end

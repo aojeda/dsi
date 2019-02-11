@@ -63,6 +63,6 @@ end
 teCalc.setProperty('DELAY',num2str(lag));
 teCalc.setProperty('k', num2str(k)); 
 teCalc.setProperty('NORMALISE', normalize);
-teCalc.setObservations(x, y);
+teCalc.setObservations(x(:), y(:));
 TE =teCalc.computeAverageLocalOfObservations();
 end
