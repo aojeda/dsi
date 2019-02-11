@@ -39,12 +39,11 @@ function TE = transferEntropy(x,y,lag,normalize,k)
 % Author of the wrapper: Alejandro Ojeda, Neural Engineering and Translation
 %                        Labs, University of California San Diego, 2019
 %%
-persistent teCalc
-if isempty(teCalc)
+persistent isInJavaPath
+if isempty(isInJavaPath)
     p = fileparts(which('transferEntropy.m'));
     javaaddpath(fullfile(p, 'infodynamics.jar'));
-    teCalc=javaObject('infodynamics.measures.continuous.kraskov.TransferEntropyCalculatorKraskov');
-    teCalc.initialise(1);
+    isInJavaPath = true;
 end
 if nargin < 3
     lag = 1;                % Number of samples x is ahead of y
@@ -60,6 +59,8 @@ if normalize
 else
     normalize = 'false';
 end
+teCalc=javaObject('infodynamics.measures.continuous.kraskov.TransferEntropyCalculatorKraskov');
+teCalc.initialise(1);
 teCalc.setProperty('DELAY',num2str(lag));
 teCalc.setProperty('k', num2str(k)); 
 teCalc.setProperty('NORMALISE', normalize);

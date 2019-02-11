@@ -35,15 +35,14 @@ function I = mutualInformation(x,y,normalize,k)
 % Author of the wrapper: Alejandro Ojeda, Neural Engineering and Translation
 %                        Labs, University of California San Diego, 2019
 
-persistent miCalc
-if isempty(miCalc)
+persistent isInJavaPath
+if isempty(isInJavaPath)
     p = fileparts(which('mutualInformation.m'));
     javaaddpath(fullfile(p, 'infodynamics.jar'));
-    miCalc=javaObject('infodynamics.measures.continuous.kraskov.MutualInfoCalculatorMultiVariateKraskov2');
-    miCalc.initialise(1,1); % univariate calculation
+    isInJavaPath = true;
 end
 if nargin < 3
-    normalize = false;    % Set to true to zscore input signals
+    normalize = false;      % Set to true to zscore input signals
 end
 if nargin < 4
     k=4;                    % Nearest neighbours for KSG estimator
@@ -53,6 +52,8 @@ if normalize
 else
     normalize = 'false';
 end
+miCalc=javaObject('infodynamics.measures.continuous.kraskov.MutualInfoCalculatorMultiVariateKraskov2');
+miCalc.initialise(1,1);     % Univariate calculation
 miCalc.setProperty('k', num2str(k)); 
 miCalc.setProperty('NORMALISE', normalize);
 miCalc.setObservations(x(:), y(:));
