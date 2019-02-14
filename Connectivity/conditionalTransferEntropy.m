@@ -11,20 +11,22 @@ function [T, theta] = conditionalTransferEntropy(X, theta, normalize, k)
 %
 %% Examples:
 %%  x(k-10) -> y (k)
+%   n = 1000; 
 %   lag = 10;
-%   x=randn(1000,1);
-%   y=circshift(x,lag)+0.1*randn(size(x));
-%   z = 0.5*x+0.5*randn(size(x));
+%   x=randn(n,1);
+%   y=circshift(x,lag)+0.1*randn(n,1);
+%   z = 0.5*x+0.5*randn(n,1);
 %   T = conditionalTransferEntropy([x,y,z]);
 %   r = corr([x,y,z]);
 %   subplot(121);imagesc(T);colorbar;
 %   subplot(122);imagesc(r);colorbar;
 %
 %%  z(k-10) -> y(k), z(k-10) -> x(k)
+%   n = 1000;
 %   lag = 10;
-%   z=randn(1000,1);
-%   y=0.6*circshift(z,lag)+0.1*randn(size(x));
-%   x=0.4*circshift(z,lag)+0.1*randn(size(x));
+%   z=randn(n,1);
+%   y=0.6*circshift(z,lag)+0.1*randn(n,1);
+%   x=0.4*circshift(z,lag)+0.1*randn(n,1);
 %   T = conditionalTransferEntropy([x,y,z]);
 %   r = corr([x,y,z]);
 %   subplot(121);imagesc(T);colorbar;
@@ -32,10 +34,11 @@ function [T, theta] = conditionalTransferEntropy(X, theta, normalize, k)
 %
 
 %%  z(k-10) -> y(k)^2 <-x(k-5)^3
+%   n = 1000;
 %   lag = 10;
-%   z=randn(1000,1);
-%   x=randn(1000,1);
-%   y=0.6*circshift(z,lag).^2+0.6*circshift(x,5).^2+0.1*randn(size(x));
+%   z=randn(n,1);
+%   x=randn(n,1);
+%   y=0.6*circshift(z,lag).^2+0.6*circshift(x,5).^2+0.1*randn(n,1);
 %   [T, theta] = conditionalTransferEntropy([x,y,z]);
 %   r = corr([x,y,z]);
 %   subplot(121);imagesc(T);colorbar;

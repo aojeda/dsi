@@ -15,8 +15,9 @@ addpath(genpath(fullfile(p,'headModel','dependency')));
 addpath(fullfile(p,'PEB'));
 addpath(fullfile(p,'PEB','invChol'));
 addpath(fullfile(p,'PEB','resources'));
+addpath(fullfile(p,'Connectivity'));
 
-h = uimenu( findobj(gcf, 'tag', 'tools'), 'label', 'Distributed spurce imaging');
+h = uimenu( findobj(gcf, 'tag', 'tools'), 'label', 'Distributed source imaging');
 hFp = uimenu( h, 'label','Forward problem');
 hIp = uimenu( h, 'label','Inverse problem');
 
