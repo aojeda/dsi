@@ -90,14 +90,17 @@ end
 I = zeros(n,1);
 ind = triu(true(m),1);
 [indI, indJ] = ind2sub([m,m],find(ind(:)));
-for c=1:length(indI)
+
+Nc = length(indI);
+prc = round(Nc*(0.1:0.1:1));
+for c=1:Nc
     if findLag
-        for k=1:n-4
+        for k=1:n
             I(k) = mutualInformation(X(:,indJ(c)),circshift(X(:,indI(c)),k-1));
         end
         
         % Find a significant delay
-        z = I/mad(I);
+        z = zscore(I);
         d = find(z > norminv(1-(0.005/n)));
         if ~isempty(d)
             [~,loc] = max(z(d));
@@ -125,6 +128,14 @@ for c=1:length(indI)
         );
     teCalc.setObservations(X(:,indI(c)), X(:,indJ(c)), X(:,setdiff(1:m,[indI(c) indJ(c)])));
     T(indJ(c),indI(c)) = teCalc.computeAverageLocalOfObservations();
+    
+    % Progress indicatior
+    prc_c = find(prc==c);
+    if ~mod(c,10)
+        fprintf('.');
+    elseif ~isempty(prc_c)
+        fprintf('%i%%',(prc_c)*10)
+    end
 end
 clear -java
 end
