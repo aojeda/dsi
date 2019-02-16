@@ -22,7 +22,7 @@ if strcmp(connType,'te')
         disp(['Trial ' num2str(k) '/' num2str(Ntrials)]);
         [C(:,:,k), theta(:,:,k)] = conditionalTransferEntropy(X(:,:,k), -1, normalize, neig);
     end
-    EEG.etc.conn = struct('measure','conditional transfer entropy','C',T,'theta',theta);
+    EEG.etc.conn = struct('measure','conditional transfer entropy','C',C,'theta',theta);
 elseif strcmp(connType,'mi')
     [C(:,:,1),ind,indI,indJ] = pairwiseMutualInformation(X(:,:,1));
     ind = find(ind(:)==1);

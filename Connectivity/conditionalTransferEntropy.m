@@ -94,6 +94,13 @@ ind = triu(true(m),1);
 Nc = length(indI);
 prc = round(Nc*(0.1:0.1:1));
 for c=1:Nc
+    % Progress indicatior
+    prc_c = find(prc==c);
+    if ~mod(c,50)
+        fprintf('.');
+    elseif ~isempty(prc_c)
+        fprintf('%i%%',(prc_c)*10)
+    end
     if findLag
         for k=1:n
             I(k) = mutualInformation(X(:,indJ(c)),circshift(X(:,indI(c)),k-1));
@@ -128,14 +135,6 @@ for c=1:Nc
         );
     teCalc.setObservations(X(:,indI(c)), X(:,indJ(c)), X(:,setdiff(1:m,[indI(c) indJ(c)])));
     T(indJ(c),indI(c)) = teCalc.computeAverageLocalOfObservations();
-    
-    % Progress indicatior
-    prc_c = find(prc==c);
-    if ~mod(c,10)
-        fprintf('.');
-    elseif ~isempty(prc_c)
-        fprintf('%i%%',(prc_c)*10)
-    end
 end
 clear -java
 end
