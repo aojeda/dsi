@@ -88,7 +88,7 @@ classdef EEGBrowserX < vis.currentSourceViewer
             obj.hFigure.Pointer = 'watch';
             drawnow
             obj.setJ(obj.source.get_source_trial(obj.trial))
-            obj.setV(obj.EEG.data(:,:,obj.trial));
+            obj.setV(double(obj.EEG.data(:,:,obj.trial)));
             for k=1:obj.EEG.nbchan
                 set(obj.hEEG(k),'YData',obj.scale*obj.EEG.data(k,:,obj.trial) + obj.hAxes2.YTick(obj.EEG.nbchan-k+1));
             end

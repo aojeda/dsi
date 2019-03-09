@@ -49,6 +49,7 @@ classdef currentSourceViewer < handle
             if nargin < 4, figureTitle = '';end
             if nargin < 6, fps = 30;end
             if nargin < 7, time = 1:size(J,1);end
+            V = double(V);
             obj.hmObj = hmObj;
             obj.autoscale = false;
             obj.fps = fps;
@@ -219,7 +220,7 @@ classdef currentSourceViewer < handle
             obj.colorBar.UserData.source{2} = '0';
             obj.colorBar.Ticks = linspace(obj.clim.source(1)*0.9,obj.clim.source(2)*0.9,3);
             obj.colorBar.Ticks(2) = 0;
-            obj.colorBar.TickLabels = {'Max' '0' 'Min'};
+            obj.colorBar.TickLabels = {'Min' '0' 'Max'};
             hold(obj.hAxes,'off');
             axis(obj.hAxes,'equal','vis3d');
             axis(obj.hAxes,'off');
