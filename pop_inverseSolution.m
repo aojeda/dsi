@@ -3,7 +3,7 @@ persistent solver
 
 if nargin < 1, error('Not enough input arguments.');end
 if nargin < 7
-    answer = inputdlg({'Window size','Overlaping (%)', 'Solver type (bsbl)', 'Save full PCD (true/false)','Account for artifacts (true/false)', 'Source ROI type (ksdensity, hist, or mean)'},'pop_inverseSolution',1,{num2str(round((40/1000)*EEG.srate)),'25', 'bsbl', 'true', 'true','ksdensity'});
+    answer = inputdlg({'Window size','Overlaping (%)', 'Solver type (bsbl)', 'Save full PCD (true/false)','Account for artifacts (true/false)', 'Source ROI type (ksdensity, hist, sum, or mean)'},'pop_inverseSolution',1,{num2str(round((40/1000)*EEG.srate)),'25', 'bsbl', 'true', 'true','ksdensity'});
     if isempty(answer)
         return;
     else
@@ -31,11 +31,12 @@ if ~islogical(saveFull)
     disp('Invalid input for saveFull parameter, we will use the default value.')
     saveFull= true;
 end
-if ~islogical(account4artifacts)
+account4artifacts = logical(account4artifacts);
+if ~isempty(account4artifacts)
     disp('Invalid input for account4artifacts parameter, we will use the default value.')
     account4artifacts= true;
 end
-if ~any(ismember({'ksdensity','hist','mean'},src2roiReductionType))
+if ~any(ismember({'ksdensity','hist','mean','sum'},src2roiReductionType))
     src2roiReductionType = 'ksdensity';
 end
 if nargin < 8, postprocCallback = [];end
@@ -62,7 +63,6 @@ labels_eeg = {EEG.chanlocs.labels};
 EEG = pop_select(EEG,'channel',loc);
 
 % Initialize the inverse solver
-Ndipoles = size(hm.cortex.vertices,1);
 if account4artifacts && exist('Artifact_dictionary.mat','file')
     [H, Delta, blocks, indG, indV] = buildAugmentedLeadField(hm);
 else
@@ -101,19 +101,6 @@ Nroi = length(hm.atlas.label);
 % Allocate memory
 X = allocateMemory([Nx, EEG.pnts, EEG.trials]);
 X_roi = zeros(Nroi, EEG.pnts, EEG.trials);
-
-% Construct the average ROI operator
-P = hm.indices4Structure(hm.atlas.label);
-P = double(P);
-P = sparse(bsxfun(@rdivide,P, sum(P)))';
-
-% Check if we need to integrate over Jx, Jy, Jz components
-if Nx == Ndipoles*3
-    P = [P P P];
-    isVect = true;
-else
-    isVect = false;
-end
 
 windowSize=max([5,windowSize]);
 overlapWin = round(windowSize*overlaping);
@@ -187,7 +174,7 @@ for trial=1:EEG.trials
     X(:,:,trial) = filtfilt(b,1,X(:,:,trial)')';
     
     % Compute average ROI time series
-    X_roi(:,:,trial) = computeSourceROI(X, indG, trial, P, isVect, src2roiReductionType);
+    X_roi(:,:,trial) = computeSourceROI(X, hm, indG, trial, src2roiReductionType);
     X_roi(:,:,trial) = filtfilt(b,1,X_roi(:,:,trial)')';
     
     % Data cleaning
@@ -239,7 +226,21 @@ end
 end
 
 %%
-function x_roi = computeSourceROI(X, indG, trial, P, isVect, src2roiReductionType)
+function x_roi = computeSourceROI(X, hm, indG, trial, src2roiReductionType)
+% Construct the sum and average ROI operator
+T = hm.indices4Structure(hm.atlas.label);
+T = double(T)';
+P = sparse(bsxfun(@rdivide,T, sum(T,2)));
+
+% Check if we need to integrate over Jx, Jy, Jz components
+if size(X,1) == 3*size(hm.cortex.vertices,1)
+    P = [P P P];
+    T = [T T T];
+    isVect = true;
+else
+    isVect = false;
+end
+
 Nt = size(X,2);
 Nroi = size(P,1);
 x_roi = zeros(Nroi,Nt);
@@ -261,6 +262,26 @@ if strcmp(src2roiReductionType,'mean')
                 x_roi(:,ind) = sqrt(P*(X(indG,ind, trial).^2));
             else
                 x_roi(:,ind) = P*X(indG,ind, trial);
+            end
+        end
+    end
+elseif strcmp(src2roiReductionType,'sum')
+    try
+        x = X(indG,:, trial);
+        if isVect
+            x_roi = sqrt(T*(x.^2));
+        else
+            x_roi = T*x;
+        end
+    catch
+        delta = min([1024 round(Nt/100)]);
+        for k=1:delta:Nt
+            ind = k:k+delta-1;
+            ind(ind>Nt) = [];
+            if isVect
+                x_roi(:,ind) = sqrt(T*(X(indG,ind, trial).^2));
+            else
+                x_roi(:,ind) = T*X(indG,ind, trial);
             end
         end
     end
