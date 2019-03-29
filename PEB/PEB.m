@@ -143,6 +143,10 @@ classdef PEB < handle
             [Sy, iSy] = calculateModelCov(obj, lambda, gamma, indices);
             logE = (-1/2)*(trace(Cy*iSy) + PEB.logDet(Sy));
         end
+        
+        function resetLambda(obj)
+            obj.lambdaBuffer = nan(size(obj.lambdaBuffer));
+        end
     end
     methods(Access=private)
         %%
