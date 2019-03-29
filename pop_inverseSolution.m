@@ -3,7 +3,7 @@ persistent solver
 
 if nargin < 1, error('Not enough input arguments.');end
 if nargin < 7
-    answer = inputdlg({'Window size','Overlaping (%)', 'Solver type (bsbl)', 'Save full PCD (true/false)','Account for artifacts (true/false)', 'Source ROI type (ksdensity, hist, sum, or mean)'},'pop_inverseSolution',1,{num2str(round((40/1000)*EEG.srate)),'25', 'bsbl', 'true', 'true','ksdensity'});
+    answer = inputdlg({'Window size','Overlaping (%)', 'Solver type (bsbl)', 'Save full PCD (true/false)','Account for artifacts (true/false)', 'Source ROI type (ksdensity, hist, sum, power, or mean)'},'pop_inverseSolution',1,{num2str(round((40/1000)*EEG.srate)),'25', 'bsbl', 'true', 'true','ksdensity'});
     if isempty(answer)
         return;
     else
@@ -32,12 +32,12 @@ if ~islogical(saveFull)
     saveFull= true;
 end
 account4artifacts = logical(account4artifacts);
-if ~isempty(account4artifacts)
+if isempty(account4artifacts)
     disp('Invalid input for account4artifacts parameter, we will use the default value.')
     account4artifacts= true;
 end
-if ~any(ismember({'ksdensity','hist','mean','sum'},src2roiReductionType))
-    src2roiReductionType = 'ksdensity';
+if ~any(ismember({'ksdensity','hist','mean','sum','power'},src2roiReductionType))
+    src2roiReductionType = 'power';
 end
 if nargin < 8, postprocCallback = [];end
 
@@ -137,7 +137,7 @@ fprintf('PEB source estimation...\n');
 for trial=1:EEG.trials
     fprintf('Processing trial %i of %i...',trial, EEG.trials);
     c = 1;
-    % for k=1:halfWindow:EEG.pnts
+    solver.resetLambda();
     for k=1:stepWin:EEG.pnts
         loc = k:k+windowSize-1;
         loc(loc>EEG.pnts) = [];
@@ -146,7 +146,6 @@ for trial=1:EEG.trials
             [X(:,loc(1):EEG.pnts,trial),lambda(c,trial),~,gamma(:,c,trial), logE(c,trial)] = solver.update(EEG.data(:,loc(1):end,trial), [],[],options);
             break;
         end
-        
         
         % Source estimation
         [Xtmp,lambda(c,trial),~,gamma(:,c,trial), logE(c,trial)] = solver.update(EEG.data(:,loc,trial),[],[],options);
@@ -282,6 +281,26 @@ elseif strcmp(src2roiReductionType,'sum')
                 x_roi(:,ind) = sqrt(T*(X(indG,ind, trial).^2));
             else
                 x_roi(:,ind) = T*X(indG,ind, trial);
+            end
+        end
+    end
+elseif strcmp(src2roiReductionType,'power')
+    try
+        x = X(indG,:, trial);
+        if isVect
+            x_roi = sqrt(T*(x.^2));
+        else
+            x_roi = T*(x.^2);
+        end
+    catch
+        delta = min([1024 round(Nt/100)]);
+        for k=1:delta:Nt
+            ind = k:k+delta-1;
+            ind(ind>Nt) = [];
+            if isVect
+                x_roi(:,ind) = sqrt(T*(X(indG,ind, trial).^2));
+            else
+                x_roi(:,ind) = T*(X(indG,ind, trial).^2);
             end
         end
     end
