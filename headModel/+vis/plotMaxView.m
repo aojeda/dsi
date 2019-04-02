@@ -1,4 +1,4 @@
-function plotMaxView(hm, x)
+function fig = plotMaxView(hm, x)
 r = 100;
 
 dx = 1*[min(hm.cortex.vertices(:,1)) max(hm.cortex.vertices(:,1))];
@@ -25,7 +25,7 @@ cmap = bipolar(256,0.65);
 ax = subplot(131);
 bg = squeeze(sum(Bg,3));
 % img = squeeze(max(abs(I),[],3));
-img = sum(abs(I),3);
+img = squeeze(max(I,[],3))+squeeze(min(I,[],3));
 bg(bg~=0) = 1;
 imagesc(img,'AlphaData',bg);axis vis3d
 title('Axial')
@@ -38,7 +38,7 @@ colormap(cmap)
 % sagittal
 ax = subplot(132);
 bg = squeeze(sum(Bg,2));
-img = squeeze(max(I,[],2));
+img = squeeze(max(I,[],2))+squeeze(min(I,[],2));
 bg(bg~=0) = 1;
 imagesc(img,'AlphaData',bg);axis vis3d
 title(sprintf('Maximal Projection Views\nSagittal'))
@@ -51,7 +51,7 @@ colormap(cmap)
 % coronal
 ax = subplot(133);
 bg = squeeze(sum(Bg,1));
-img = squeeze(max(I,[],1));
+img = squeeze(max(I,[],1))+squeeze(min(I,[],1));
 bg(bg~=0) = 1;
 imagesc(img,'AlphaData',bg);axis vis3d
 title('Coronal')
