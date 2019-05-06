@@ -11,6 +11,6 @@ The DSI toolbox for is a metapackage that combines the [headModel](https://githu
 4. Run `eeglab` or `eeglab redraw` (if you don't want to clean your current EEG structure)
 
 ## Three functions to rule them all
-* Forward problem solver: [pop_forwardProblem](https://github.com/aojeda/dsi/wiki/Forward-problem-solver)
-* Inverse problem solver: [pop_inverseProblem](https://github.com/aojeda/dsi/wiki/Inverse-problem-solver)
+* Forward problem solver: [pop_forwardModel](https://github.com/aojeda/dsi/wiki/Forward-problem-solver)
+* Inverse problem solver: [pop_inverseSolution](https://github.com/aojeda/dsi/wiki/Inverse-problem-solver)
 * Visualization: [pop_eegbrowserx](https://github.com/aojeda/dsi/wiki/EEGBrowserX)
