@@ -237,7 +237,7 @@ classdef currentSourceViewer < handle
             if size(J,1) == 3*size(obj.hmObj.cortex.vertices,1)
                 J = reshape(J,[size(J,1)/3 3 size(J,2)]);
                 Jm = squeeze(sqrt(sum(J.^2,2)));
-                mx = max(std(obj.hmObj.cortex.vertices));
+                mx = mean(std(obj.hmObj.cortex.vertices));
                 obj.sourceOrientation = mx*J/max(abs(J(:)));
                 obj.sourceMagnitud = Jm;
             else
@@ -296,6 +296,7 @@ classdef currentSourceViewer < handle
                     
                     if strcmp(obj.hVectorR.Visible,'on')
                         obj.hVectorR.Visible = 'off';
+                        obj.hVectorL.Visible = 'on';
                     end
                 case 2
                     obj.hCortexR.Visible = 'on';
@@ -303,6 +304,7 @@ classdef currentSourceViewer < handle
                     
                     if strcmp(obj.hVectorL.Visible,'on')
                         obj.hVectorL.Visible = 'off';
+                        obj.hVectorR.Visible = 'on';
                     end
                 otherwise
                     obj.hCortexR.Visible = 'on';
@@ -325,9 +327,21 @@ classdef currentSourceViewer < handle
                 case 'sensorsOff'
                     set(obj.hSensors,'Visible','off');
                 case 'vectorOn'
-                    set([obj.hVectorL obj.hVectorR],'Visible','on');
+                    if obj.lrState==1
+                        set(obj.hVectorL,'Visible','on');
+                    elseif obj.lrState==2
+                        set(obj.hVectorR,'Visible','on');
+                    else
+                        set([obj.hVectorL obj.hVectorR],'Visible','on');
+                    end
                 case 'vectorOff'
-                    set([obj.hVectorL obj.hVectorR],'Visible','off');
+                    if obj.lrState==1
+                        set(obj.hVectorL,'Visible','off');
+                    elseif obj.lrState==2
+                        set(obj.hVectorR,'Visible','off');
+                    else
+                        set([obj.hVectorL obj.hVectorR],'Visible','off');
+                    end
                 case 'scalpOn'
                     %obj.colorBar.Label.String = 'Voltage ($\mu V$)';
                     %set(obj.hAxes,'Clim',obj.clim.scalp);

@@ -11,26 +11,37 @@ function [H, Delta, blocks, indG, indV] = buildAugmentedLeadField(hm)
 %   indG are the indices of the brain sources
 %   indV are the indices of the artifact sources
 
+Nroi = length(hm.atlas.label);
+[Ny,Ng] = size(hm.K);
 c = load('Artifact_dictionary.mat');
 templateFile = fullfile(fileparts(which('headModel.m')),'resources',[c.templateName '.mat']);
 template = headModel.loadFromFile(templateFile);
-[Ny,Ng] = size(hm.K);
+%--
 Nic = size(c.A,2);
-Nroi = length(hm.atlas.label);
 A = zeros(Ny,Nic);
 for ic=1:Nic
     F = scatteredInterpolant(template.channelSpace,c.A(:,ic),'linear','linear');
     A(:,ic) = F(hm.channelSpace);
 end
 A = [A eye(Ny)];
+% A = eye(Ny);
+%--
 Nv = size(A,2);
 norm_K = norm(hm.K);
 L = hm.K/norm_K;
-Delta = blkdiag(hm.L/norm_K,eye(Nv));
+Delta = hm.L/norm_K;
 H = [L A];
 H = bsxfun(@rdivide,H,sqrt(sum(H.^2)));
 blocks = hm.indices4Structure(hm.atlas.label);
-blocks = [[blocks;false(Nv,Nroi)] [false(Ng,Nv);diag(true(Nv,1))]];
+if size(hm.K,2) == 3*size(hm.cortex.vertices,1)
+    H(:,(1:Ng)) = -H(:,(1:Ng));
+    Delta = kron(eye(3),Delta);
+    blocks = logical(kron(eye(3),blocks));
+    blocks = [[blocks;false(Nv,Nroi*3)] [false(Ng,Nv);diag(true(Nv,1))]];
+else
+    blocks = [[blocks;false(Nv,Nroi)] [false(Ng,Nv);diag(true(Nv,1))]];
+end
+Delta = blkdiag(Delta,eye(Nv));
 indG = (1:Ng)';
 indV = Ng+(1:Nv)';
 end

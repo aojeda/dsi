@@ -423,23 +423,21 @@ classdef headModel < handle
             c2 = onCleanup(@()delete(headModelConductivity));
 
             dipolesFile = fullfile(tmpDir,[rname '_dipoles.txt']);
-            
             if isempty(obj.cortexNormals)
-                normalsIn = true;
+                normalsIn = false;
                 [normals,obj.cortex.faces] = geometricTools.getSurfaceNormals(obj.cortex.vertices,obj.cortex.faces,normalsIn);
             else
                 normals = obj.cortexNormals;
             end
-
-            normalityConstrained = ~orientation;
-            if normalityConstrained
-                sourceSpace = [obj.cortex.vertices normals];
-            else
-                One = ones(length(normals(:,2)),1)*norm(obj.cortex.vertices)/sqrt(size(obj.cortex.vertices,1));
+            dipole_xyz = obj.cortex.vertices;
+            if orientation
+                One = ones(length(normals(:,2)),1)*norm(dipole_xyz)/sqrt(size(dipole_xyz,1));
                 Zero = 0*One;
-                sourceSpace = [obj.cortex.vertices One Zero Zero;...
-                    obj.cortex.vertices Zero One Zero;...
-                    obj.cortex.vertices Zero Zero One];
+                sourceSpace = [dipole_xyz One Zero Zero;...
+                    dipole_xyz Zero One Zero;...
+                    dipole_xyz Zero Zero One];
+            else
+                sourceSpace = [dipole_xyz normals];
             end
             dlmwrite(dipolesFile, sourceSpace, 'precision', 6,'delimiter',' ')
             c3 = onCleanup(@()delete(dipolesFile));
@@ -490,9 +488,11 @@ classdef headModel < handle
             end
             if ~exist(lfFile,'file'), error('An unexpected error occurred running OpenMEEG binaries. Report this to alejandro@sccn.ucsd.edu');end
 
-            load(lfFile);
+            load(lfFile,'linop');
             obj.K = linop;
-            clear linop;
+%             if orientation
+%                 obj.K = -obj.K;
+%             end
             if exist(lfFile,'file'), delete(lfFile);end
             disp('Done.')
         end
@@ -561,7 +561,7 @@ classdef headModel < handle
                sin(pi/2)  cos(pi/2) 0 -0.0322;...
                0          0         1 -0.0414;...
                0          0         0 1];
-           s = [1000*[1 1 1] 0];
+           s = [1000*[1 1 1] 1];
            M = diag(s)*M;
            obj.cortex.vertices   = (M*[obj.cortex.vertices   ones(size(obj.cortex.vertices,1),1)]')';   obj.cortex.vertices(:,4)   = [];
            obj.inskull.vertices  = (M*[obj.inskull.vertices  ones(size(obj.inskull.vertices,1),1)]')';  obj.inskull.vertices(:,4)  = [];

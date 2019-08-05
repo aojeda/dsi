@@ -20,10 +20,23 @@ classdef EEGBrowserX < vis.currentSourceViewer
         function obj = EEGBrowserX(EEG, figureTitle, clim)
             if nargin < 2, figureTitle = '';end
             if nargin < 3, clim = [];end
-            J = EEG.etc.src.actFull(:,:,1);
+            J = EEG.etc.src.actFull(EEG.etc.src.indG,:,1);
             V = EEG.data(:,:,1);
             hm = headModel.loadFromFile(EEG.etc.src.hmfile);
             obj = obj@vis.currentSourceViewer(hm,J,V,figureTitle,false, EEG.srate, EEG.times);
+            obj.timeCursor.Position(3) = 0.3;
+            h = findall(obj.hFigure,'string','Time Cursor');
+            h.Position(1) = 0.565;
+            resFolder = [fileparts(which('headModel.m')) filesep '+vis' filesep 'icons'];
+            imgScaleDown = imread([resFolder filesep 'Gnome-list-remove.svg.png']);
+            imgScaleUp = imread([resFolder filesep 'Gnome-list-add.svg.png']);
+            p = findall(obj.hFigure.Children, 'type','uipanel');
+            hDown = uicontrol('Parent', p, 'Style', 'pushbutton','TooltipString','Scale down','UserData',obj,'Callback',@onScaleDown,'CData',imgScaleDown);
+            hUp = uicontrol('Parent', p, 'Style', 'pushbutton','TooltipString','Scale up','UserData',obj,'Callback',@onScaleUp,'CData',imgScaleUp);
+            hDown.Units = 'normalized';
+            hDown.Position = [0.8371 0 0.0623 0.8274];
+            hUp.Units = 'normalized';
+            hUp.Position = [0.91 0 0.0623 0.8274];
             if ~isempty(clim)
                 obj.clim.source = clim;
                 obj.clim.scalp = clim;
@@ -106,6 +119,7 @@ classdef EEGBrowserX < vis.currentSourceViewer
     end
 end
 
+
 function onKeyPress(src,evnt)
 obj = src.UserData;
 switch evnt.Key
@@ -118,4 +132,20 @@ for k=1:obj.EEG.nbchan
     set(obj.hEEG(k),'YData',obj.scale*obj.EEG.data(k,:,obj.trial) + obj.hAxes2.YTick(obj.EEG.nbchan-k+1));
 end
 
+end
+
+function onScaleDown(src,evnt)
+obj = src.UserData;
+obj.scale = obj.scale/2;
+for k=1:obj.EEG.nbchan
+    set(obj.hEEG(k),'YData',obj.scale*obj.EEG.data(k,:,obj.trial) + obj.hAxes2.YTick(obj.EEG.nbchan-k+1));
+end
+end
+
+function onScaleUp(src,evnt)
+obj = src.UserData;
+obj.scale = obj.scale*2;
+for k=1:obj.EEG.nbchan
+    set(obj.hEEG(k),'YData',obj.scale*obj.EEG.data(k,:,obj.trial) + obj.hAxes2.YTick(obj.EEG.nbchan-k+1));
+end
 end

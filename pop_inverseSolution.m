@@ -121,7 +121,7 @@ indGamma = EEG.times(1:windowSize:EEG.pnts);
 % series does not have high frequency components due to batch processing
 [Pxx, freq] = pmtm(EEG.data(:,:,1)',2.5,EEG.srate,EEG.srate);
 [h,~,ci] = ttest(mean(10*log10(Pxx),2));
-if h
+if false %h
     % Find cutoff
     cutoff = freq(find(mean(10*log10(Pxx),2) < ci(2) & freq > 3,1))-1;
 else
@@ -178,7 +178,6 @@ for trial=1:EEG.trials
     
     % Data cleaning
     EEG.data(:,:,trial) = cleanData(H, X, indG, trial);
-    
     fprintf('\n');
 end
 EEG.etc.src.act = X_roi;
@@ -232,7 +231,7 @@ T = double(T)';
 P = sparse(bsxfun(@rdivide,T, sum(T,2)));
 
 % Check if we need to integrate over Jx, Jy, Jz components
-if size(X,1) == 3*size(hm.cortex.vertices,1)
+if length(indG) == 3*size(hm.cortex.vertices,1)
     P = [P P P];
     T = [T T T];
     isVect = true;
@@ -287,11 +286,7 @@ elseif strcmp(src2roiReductionType,'sum')
 elseif strcmp(src2roiReductionType,'power')
     try
         x = X(indG,:, trial);
-        if isVect
-            x_roi = sqrt(T*(x.^2));
-        else
-            x_roi = T*(x.^2);
-        end
+        x_roi = sqrt(T*(x.^2));
     catch
         delta = min([1024 round(Nt/100)]);
         for k=1:delta:Nt

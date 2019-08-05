@@ -7,7 +7,6 @@ classdef EEGSource < handle
         indG
         indV
         gamma
-        indGamma
         roi
         P
     end
@@ -44,7 +43,6 @@ classdef EEGSource < handle
             obj.indG = EEG.etc.src.indG;
             obj.indV = EEG.etc.src.indV;
             obj.gamma = EEG.etc.src.gamma;
-            obj.indGamma = EEG.etc.src.indGamma;
             hm = headModel.loadFromFile(EEG.etc.src.hmfile);
             obj.P = double(hm.indices4Structure(hm.atlas.label));
             obj.P = sparse(bsxfun(@rdivide,obj.P, sum(obj.P)))';

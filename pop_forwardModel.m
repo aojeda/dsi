@@ -73,6 +73,11 @@ try
         hm = headModel.loadFromFile(hmfile);
     end
     
+    % Check if needs to compute xyz components
+    if orientation && size(hm.K,2)~=3*size(hm.cortex.vertices,1)
+        hm.computeLeadFieldBEM(conductivity,orientation);
+    end
+    
     % Save the forward model
     hm.saveToFile(hmfile);
     EEG.etc.src.hmfile = hmfile;
