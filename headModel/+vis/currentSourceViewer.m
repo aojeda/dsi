@@ -237,7 +237,7 @@ classdef currentSourceViewer < handle
             if size(J,1) == 3*size(obj.hmObj.cortex.vertices,1)
                 J = reshape(J,[size(J,1)/3 3 size(J,2)]);
                 Jm = squeeze(sqrt(sum(J.^2,2)));
-                mx = mean(std(obj.hmObj.cortex.vertices));
+                mx = 1*mean(std(obj.hmObj.cortex.vertices));
                 obj.sourceOrientation = mx*J/max(abs(J(:)));
                 obj.sourceMagnitud = Jm;
             else
@@ -408,8 +408,8 @@ classdef currentSourceViewer < handle
             obj.hAxes.XTickLabel = [];
             obj.hAxes.YTickLabel = [];
             obj.hAxes.ZTickLabel = [];
-            axHeight = obj.hAxes.Position(4);
-            obj.hAxes.Position(4) = 0.8;
+            %axHeight = obj.hAxes.Position(4);
+            %obj.hAxes.Position(4) = 0.8;
             title(obj.hAxes,[obj.figureName '  ' sprintf('%f msec  (%i',obj.time(obj.pointer),obj.pointer) '/' obj.Nframes ')']);
             frame = getframe(obj.hFigure);
             writeVideo(writer, frame);
@@ -422,7 +422,7 @@ classdef currentSourceViewer < handle
             end
             close(writer);
             title(obj.hAxes,'');
-            obj.hAxes.Position(4) = axHeight;
+            %obj.hAxes.Position(4) = axHeight;
             disp('Done.')
         end
         %%
