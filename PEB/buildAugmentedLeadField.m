@@ -36,8 +36,11 @@ blocks = hm.indices4Structure(hm.atlas.label);
 if size(hm.K,2) == 3*size(hm.cortex.vertices,1)
     H(:,(1:Ng)) = -H(:,(1:Ng));
     Delta = kron(eye(3),Delta);
-    blocks = logical(kron(eye(3),blocks));
-    blocks = [[blocks;false(Nv,Nroi*3)] [false(Ng,Nv);diag(true(Nv,1))]];
+    
+    blocks = logical(kron(ones(3,1),blocks));
+    blocks = [[blocks;false(Nv,Nroi)] [false(Ng,Nv);diag(true(Nv,1))]];
+    % blocks = logical(kron(eye(3),blocks));
+    % blocks = [[blocks;false(Nv,Nroi*3)] [false(Ng,Nv);diag(true(Nv,1))]];
 else
     blocks = [[blocks;false(Nv,Nroi)] [false(Ng,Nv);diag(true(Nv,1))]];
 end

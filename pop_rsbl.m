@@ -1,9 +1,9 @@
-function EEG = pop_rsbl(EEG, saveFull, account4artifacts, src2roiReductionType, solverType)
+function EEG = pop_rsbl(EEG, saveFull, account4artifacts, src2roiReductionType, solverType, updateFreq)
 persistent solver
 
 if nargin < 1, error('Not enough input arguments.');end
 if nargin == 1
-    answer = inputdlg({'Save full PCD (true/false)','Account for artifacts (true/false)', 'Source ROI type (power, mpower, ksdensity, hist, sum, or mean)', 'Solver type (bsbl, loreta)'},'pop_pebp', 1, {'true', 'true','power','bsbl'});
+    answer = inputdlg({'Save full PCD (true/false)','Account for artifacts (true/false)', 'Source ROI type (power, mpower, ksdensity, hist, sum, or mean)', 'Solver type (bsbl, loreta)','Update model every k samples'},'pop_pebp', 1, {'true', 'true','power','bsbl','1'});
     if isempty(answer)
         return;
     else
@@ -11,6 +11,7 @@ if nargin == 1
         account4artifacts = str2num(lower(answer{2})); %#ok
         src2roiReductionType = lower(answer{3});
         solverType = lower(answer{4});
+        updateFreq = str2double(lower(answer{5}));
     end
 end
 if ~islogical(saveFull)
@@ -30,6 +31,9 @@ if nargin < 5
 end
 if ~any(ismember({'bsbl','loreta'},solverType))
     solverType = 'bsbl';
+end
+if nargin < 6
+    updateFreq = max([1 round(0.02*EEG.srate)]);
 end
 
 % Load the head model
@@ -84,6 +88,7 @@ else
         solver = RSBL(H, Delta, blocks);
     end
 end
+% solver = RSBL(H, Delta, blocks);
 solver.defaultOptions.verbose = false;
 if strcmp(solverType,'loreta')
     solver.defaultOptions.doPruning = false;
@@ -123,12 +128,12 @@ fprintf('Approximated noise level: %f\n', lambda0);
 
 
 % Perform source estimation
-fprintf('PEB source estimation...\n');
+fprintf('RSBL filtering...\n');
 for trial=1:EEG.trials
     fprintf('Processing trial %i of %i...',trial, EEG.trials);
     
     [X(:,1,trial), lambda(1,trial),gamma_F(1,trial),gamma(:,1,trial), logE(1,trial)] = solver.update(EEG.data(:,1,trial), lambda0);
-    itnumb = 0;
+    K = solver.getK(lambda(1,trial), gamma(:,1,trial));
     for k=2:EEG.pnts
         
         % Prediction
@@ -137,7 +142,17 @@ for trial=1:EEG.trials
         E(:,k,trial) = e;
               
         % Source estimation
-        [dX, lambda(k,trial),gamma_F(k,trial),gamma(:,k,trial), logE(k,trial), history] = solver.update(e, lambda(k-1,trial), gamma(:,k-1,trial));
+        if ~mod(k,updateFreq)
+            %[dX, lambda(k,trial),gamma_F(k,trial),gamma(:,k,trial), logE(k,trial)] = solver.update(e, lambda(k-1,trial), gamma(:,k-1,trial));
+            [~, lambda(k,trial),gamma_F(k,trial),gamma(:,k,trial), logE(k,trial)] = solver.update(e, lambda(k-1,trial), gamma(:,k-1,trial));
+            K = solver.getK(lambda(k,trial), gamma(:,k,trial));
+        else
+            lambda(k,trial) = lambda(k-1,trial);
+            gamma_F(k,trial) = gamma_F(k-1,trial);
+            gamma(:,k,trial) = gamma(:,k-1,trial);
+            logE(k,trial) = logE(k-1,trial);
+        end
+        dX = K*e;
         X(:,k,trial) = Xpred + dX;
         
         % Progress indicatior
@@ -147,9 +162,7 @@ for trial=1:EEG.trials
         prc = find(prc_10==k);
         if ~isempty(prc), fprintf('%i%%',prc*10);end
     end
-    itnumb = itnumb + history.pointer;
-    fprintf('  %f', itnumb/EEG.pnts);
-    
+        
     % Compute average ROI time series
     X_roi(:,:,trial) = computeSourceROI(X, hm, indG, trial, src2roiReductionType);
     
@@ -165,7 +178,7 @@ EEG.etc.src.H = H;
 EEG.etc.src.indG = indG;
 EEG.etc.src.indV = indV;
 EEG.etc.src.logE = logE;
-EEG.etc.src.solver = solver;
+% EEG.etc.src.solver = solver;
 fprintf('done\n');
 
 if saveFull
@@ -178,7 +191,7 @@ if saveFull
 else
     EEG.etc.src.actFull = [];
 end
-EEG.history = char(EEG.history,['EEG = pop_pep(EEG, ' num2str(saveFull) ', ' num2str(account4artifacts) ');']);
+EEG.history = char(EEG.history,['EEG = pop_rsbl(EEG, ' num2str(saveFull) ', ' num2str(account4artifacts)  ', ''' num2str(src2roiReductionType) ''', ''' solverType ''', ' num2str(updateFreq) ');']);
 disp('The source estimates were saved in EEG.etc.src');
 end
 

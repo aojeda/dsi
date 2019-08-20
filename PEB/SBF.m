@@ -1,4 +1,4 @@
-classdef RSBL < handle
+classdef SBF < handle
     properties
         H
         Delta
@@ -6,6 +6,7 @@ classdef RSBL < handle
         Ny
         Nx
         Ng
+        K
         defaultOptions = struct(...
             'maxIter',100,...       % Maximum number of iterations
             'verbose',true,...      % Produce per-iteration prints
@@ -23,11 +24,10 @@ classdef RSBL < handle
         Ut
         s2
         Iy
-        History
     end
     
     methods
-        function obj = RSBL(H, Delta, blocks)
+        function obj = SBF(H, Delta, blocks)
             obj.H = H;
             obj.Delta = Delta;
             obj.Blocks = blocks;
@@ -40,7 +40,7 @@ classdef RSBL < handle
             ind1      = zeros(obj.Nx,obj.Nx);
             ind2      = zeros(obj.Nx,obj.Ny);
             obj.Iy    = speye(obj.Ny);
-            obj.History = struct('lambda',nan(obj.defaultOptions.bufferSize,1),'gamma_F',nan(obj.defaultOptions.bufferSize,1),'logE',nan(obj.defaultOptions.bufferSize,1),'pointer',1);
+            
             fprintf('Precomputing  ');
             for k=1:obj.Ng
                 % Per-block square root precision matrix
@@ -82,7 +82,7 @@ classdef RSBL < handle
             obj.Ut = U';
             
             if ~exist('compileInvChol','file')
-                addpath(fullfile(fileparts(which('RSBL')),'invChol'));
+                addpath(fullfile(fileparts(which('SBF')),'invChol'));
             end
             try
                 invChol_mex(eye(4));
@@ -129,25 +129,21 @@ classdef RSBL < handle
                 options = obj.defaultOptions;
             end
             [lambda, gamma, gamma_F, history] = learning(obj, y, lambda, gamma_F0, gamma0, options);
-            logE = calculateLogEvidence(obj,y,lambda,gamma);
+            logE = calculateLogEvidence(obj,y*y'/size(y,2),lambda,gamma);
             
-            K = getK(obj, lambda, gamma);
-            x = K*y;
-        end
-        %%
-        function K = getK(obj, lambda, gamma)
             [~, iSy] = obj.calculateModelCov(lambda, gamma);
             SxHt = reshape(obj.CiHt*gamma,[obj.Nx obj.Ny]);
-            K = SxHt*iSy;
+            x = SxHt*iSy*y;
         end
         %%
         function ypred = predict(obj, x)
             ypred = obj.H*x;
         end
         %%
-        function logE = calculateLogEvidence(obj,y,lambda,gamma)
-            [Sy, iSy] = calculateModelCov(obj, lambda, gamma);
-            logE = (-1/2)*(y'*iSy*y + RSBL.logDet(Sy));
+        function logE = calculateLogEvidence(obj,Cy,lambda,gamma, indices)
+            if nargin < 5, indices = 1:obj.Ng;end
+            [Sy, iSy] = calculateModelCov(obj, lambda, gamma, indices);
+            logE = (-1/2)*(trace(Cy*iSy) + SBF.logDet(Sy));
         end
     end
     methods(Access=private)
@@ -163,17 +159,18 @@ classdef RSBL < handle
         function [lambda, gamma, gamma_F, history] = optimizeFullModel(obj,Y,lambda0, gamma_F0, options)
             UtY2 = (obj.Ut*Y).^2;
             Nt = size(Y,2);
+            Cy = Y*Y'/Nt;
             gamma = ones(obj.Ng,1);
             lambda = lambda0;
             gamma_F = gamma_F0;
             gamma(:) = gamma_F;
             
-            history = obj.History;
+            history = struct('lambda',nan(options.bufferSize,1),'gamma_F',nan(options.bufferSize,1),'logE',nan(options.bufferSize,1),'pointer',1);
             history.lambda(1)  = lambda;
             history.gamma_F(1) = gamma_F;
-            history.logE(1)    = calculateLogEvidence(obj,Y,lambda,gamma);
+            history.logE(1)    = calculateLogEvidence(obj,Cy,lambda,gamma);
             
-            for k=2:100%options.maxIter
+            for k=2:options.maxIter
                 psi = gamma_F*obj.s2+lambda;
                 psi2 = psi.^2;
                 
@@ -184,7 +181,7 @@ classdef RSBL < handle
                 gamma(:) = gamma_F;
                 history.lambda(k) = lambda;
                 history.gamma_F(k) = gamma_F;
-                history.logE(k) = calculateLogEvidence(obj,Y,lambda,gamma);
+                history.logE(k) = calculateLogEvidence(obj,Cy,lambda,gamma);
                 
                 if options.verbose
                     fprintf('%i => diff(logE): %.4g   logE: %.5g   Lambda: %.4g   Gamma: %.4g\n',...
@@ -225,6 +222,8 @@ classdef RSBL < handle
             if numel(gamma0)==1
                 gamma0 = gamma*0+gamma0;
             end
+            Nt = size(Y,2);
+            Cy = Y*Y'/Nt;
             A = 0*gamma;
             B = A;
             for k=1:options.maxIter
@@ -234,9 +233,9 @@ classdef RSBL < handle
                     A(i) = norm(Hi_iSy*Y,'fro')^2;
                     B(i) = (abs(sum(sum((Hi_iSy)'.*obj.Hi{i}))));
                 end
-                gamma = 0.25*gamma0 + 0.75*gamma.*(A./B);
+                gamma = 0.4*gamma0 + 0.6*gamma.*(A./B);
                 history.pointer = history.pointer+1;
-                history.logE(history.pointer) = calculateLogEvidence(obj,Y,lambda,gamma);
+                history.logE(history.pointer) = calculateLogEvidence(obj,Cy,lambda,gamma);
                 if options.verbose
                     fprintf('%i => diff(logE): %.4g   logE: %.5g   Sum Gamma: %.4g\n',history.pointer,diff(...
                         history.logE(history.pointer-1:history.pointer)),history.logE(history.pointer),sum(nonzeros(gamma)));
@@ -246,8 +245,9 @@ classdef RSBL < handle
         end
         
         %%
-        function [Sy, iSy] = calculateModelCov(obj,lambda,gamma)
-            gHHt = sum(bsxfun(@times, obj.HiHit,permute(gamma,[3 2 1])),3);
+        function [Sy, iSy] = calculateModelCov(obj,lambda,gamma, indices)
+            if nargin < 4, indices = 1:obj.Ng;end
+            gHHt = sum(bsxfun(@times, obj.HiHit(:,:,indices),permute(gamma(indices),[3 2 1])),3);
             Sy = lambda*obj.Iy+gHHt;
             try
                 iSy = invChol_mex(double(Sy));
