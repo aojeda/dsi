@@ -173,7 +173,7 @@ classdef RSBL < handle
             history.gamma_F(1) = gamma_F;
             history.logE(1)    = calculateLogEvidence(obj,Y,lambda,gamma);
             
-            for k=2:100%options.maxIter
+            for k=2:options.maxIter
                 psi = gamma_F*obj.s2+lambda;
                 psi2 = psi.^2;
                 

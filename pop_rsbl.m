@@ -26,15 +26,11 @@ end
 if ~any(ismember({'ksdensity','hist','mean','sum','power','mpower'},src2roiReductionType))
     src2roiReductionType = 'power';
 end
-if nargin < 5
-    solverType = 'bsbl';
-end
 if ~any(ismember({'bsbl','loreta'},solverType))
     solverType = 'bsbl';
 end
-if nargin < 6
-    updateFreq = max([1 round(0.02*EEG.srate)]);
-end
+updateFreq = max([1 updateFreq]);
+updateFreq = min([updateFreq round(0.02*EEG.srate)]);
 
 % Load the head model
 try
@@ -97,7 +93,9 @@ EEG.data = double(EEG.data);
 Nroi = length(hm.atlas.label);
 
 % Allocate memory
-X = allocateMemory([Nx, EEG.pnts, EEG.trials]);
+if saveFull
+    X = allocateMemory([Nx, EEG.pnts, EEG.trials]);
+end
 X_roi = zeros(Nroi, EEG.pnts, EEG.trials);
 
 prc_5 = round(linspace(1,EEG.pnts,30));
@@ -126,18 +124,24 @@ lambda0 = D'*(D'\mean(abs(Y),3)');
 lambda0 = mean(mean(lambda0(end-round(n/2/3):end,:)));
 fprintf('Approximated noise level: %f\n', lambda0);
 
+Yhat = EEG.data;
 
 % Perform source estimation
 fprintf('RSBL filtering...\n');
 for trial=1:EEG.trials
     fprintf('Processing trial %i of %i...',trial, EEG.trials);
     
-    [X(:,1,trial), lambda(1,trial),gamma_F(1,trial),gamma(:,1,trial), logE(1,trial)] = solver.update(EEG.data(:,1,trial), lambda0);
+    [X_k, lambda(1,trial),gamma_F(1,trial),gamma(:,1,trial), logE(1,trial)] = solver.update(EEG.data(:,1,trial), lambda0);
+    if saveFull
+        X(:,1,trial) = X_k;
+    end
+    X_roi(:,1,trial) = computeSourceROI(X_k(indG), hm, src2roiReductionType);
+    Yhat(:,1,trial) = H(:, indG)*X_k(indG);
     K = solver.getK(lambda(1,trial), gamma(:,1,trial));
     for k=2:EEG.pnts
         
         % Prediction
-        Xpred = A*X(:,k-1,trial);
+        Xpred = A*X_k; %X(:,k-1,trial);
         e = EEG.data(:,k,trial) - solver.predict(Xpred);
         E(:,k,trial) = e;
               
@@ -153,7 +157,18 @@ for trial=1:EEG.trials
             logE(k,trial) = logE(k-1,trial);
         end
         dX = K*e;
-        X(:,k,trial) = Xpred + dX;
+        
+        X_k = Xpred + dX;
+        if saveFull
+            % X(:,k,trial) = Xpred + dX;
+            X(:,k,trial) = X_k;
+        end
+        
+        % Compute ROI signal
+        X_roi(:,k,trial) = computeSourceROI(X_k(indG), hm, src2roiReductionType);
+        
+        % Clean EEG
+        Yhat(:,k,trial) = H(:, indG)*X_k(indG);
         
         % Progress indicatior
         if any(prc_5==k)
@@ -162,14 +177,9 @@ for trial=1:EEG.trials
         prc = find(prc_10==k);
         if ~isempty(prc), fprintf('%i%%',prc*10);end
     end
-        
-    % Compute average ROI time series
-    X_roi(:,:,trial) = computeSourceROI(X, hm, indG, trial, src2roiReductionType);
-    
-    % Data cleaning
-    EEG.data(:,:,trial) = cleanData(H, X, indG, trial);
     fprintf('\n');
 end
+EEG.data = Yhat;
 EEG.etc.src.act = X_roi;
 EEG.etc.src.roi = hm.atlas.label;
 EEG.etc.src.lambda = lambda;
@@ -213,116 +223,34 @@ end
 end
 
 %%
-function x_roi = computeSourceROI(X, hm, indG, trial, src2roiReductionType)
+function x_roi = computeSourceROI(X, hm, src2roiReductionType)
 % Construct the sum and average ROI operator
 T = hm.indices4Structure(hm.atlas.label);
 T = double(T)';
 P = sparse(bsxfun(@rdivide,T, sum(T,2)));
 
 % Find if we need to integrate over Jx, Jy, Jz components
-isVect = length(indG) == 3*size(hm.cortex.vertices,1);
+isVect = length(X) == 3*size(hm.cortex.vertices,1);
 if isVect
     P = [P P P]/3;
     T = [T T T];
 end
-Nt = size(X,2);
 Nroi = size(P,1);
-x_roi = zeros(Nroi,Nt);
-blocks = P~=0;
+x_roi = zeros(Nroi,1);
 if strcmp(src2roiReductionType,'mean')
     if isVect
         warning('In a solution with (x,y,z) components, the ROI ''mean'' may not make a lot of sense, consider using the ''mpower'' (mean power) option, which is equivalent to taking the mean of dipole magnitudes.');
     end
-    try
-        x = X(indG,:, trial);
-        x_roi = P*x;
-    catch
-        delta = min([1024 round(Nt/100)]);
-        for k=1:delta:Nt
-            ind = k:k+delta-1;
-            ind(ind>Nt) = [];
-            x_roi(:,ind) = P*X(indG,ind, trial);
-        end
-    end
+    x_roi = P*X;
 elseif strcmp(src2roiReductionType,'sum')
     if isVect
         warning('In a solution with (x,y,z) components, the ROI ''sum'' may not make a lot of sense, consider using the ''power'' (total power), which takes the sum of dipole magnitudes.');
     end
-    try
-        x = X(indG,:, trial);
-        x_roi = T*x;
-    catch
-        delta = min([1024 round(Nt/100)]);
-        for k=1:delta:Nt
-            ind = k:k+delta-1;
-            ind(ind>Nt) = [];
-            x_roi(:,ind) = T*X(indG,ind, trial);
-        end
-    end
+    x_roi = T*X;
 elseif strcmp(src2roiReductionType,'power')
-    try
-        x = X(indG,:, trial);
-        x_roi = sqrt(T*(x.^2));
-    catch
-        delta = min([1024 round(Nt/100)]);
-        for k=1:delta:Nt
-            ind = k:k+delta-1;
-            ind(ind>Nt) = [];
-            if isVect
-                x_roi(:,ind) = sqrt(T*(X(indG,ind, trial).^2));
-            else
-                x_roi(:,ind) = T*(X(indG,ind, trial).^2);
-            end
-        end
-    end
- elseif strcmp(src2roiReductionType,'mpower')
-    try
-        x = X(indG,:, trial);
-        x_roi = sqrt(P*(x.^2));
-    catch
-        delta = min([1024 round(Nt/100)]);
-        for k=1:delta:Nt
-            ind = k:k+delta-1;
-            ind(ind>Nt) = [];
-            if isVect
-                x_roi(:,ind) = sqrt(P*(X(indG,ind, trial).^2));
-            else
-                x_roi(:,ind) = P*(X(indG,ind, trial).^2);
-            end
-        end
-    end
-elseif strcmp(src2roiReductionType,'ksdensity')
-    delta = 5;
-    for r=1:Nroi
-        for k=1:delta:Nt
-            ind = k:k+delta-1;
-            ind(ind>Nt) = [];
-            if isVect
-                xv = abs(X(indG(blocks(r,:)),ind, trial));
-            else
-                xv = X(indG(blocks(r,:)),ind, trial);
-            end
-            [fx, xi] = ksdensity(xv(:));
-            Px = griddedInterpolant(xi,fx/sum(fx));
-            x_roi(r,ind) = sum(reshape(xv(:).*Px(xv(:)),size(xv)));
-        end
-    end
-elseif strcmp(src2roiReductionType,'hist')
-    delta = 5;
-    for r=1:Nroi
-        for k=1:delta:Nt
-            ind = k:k+delta-1;
-            ind(ind>Nt) = [];
-            if isVect
-                xv = abs(X(indG(blocks(r,:)),ind, trial));
-            else
-                xv = X(indG(blocks(r,:)),ind, trial);
-            end
-            [fx, xi] = hist(xv(:),100);
-            Px = griddedInterpolant(xi,fx/sum(fx));
-            x_roi(r,ind) = sum(reshape(xv(:).*Px(xv(:)),size(xv)));
-        end
-    end
+    x_roi = sqrt(T*(X.^2));
+elseif strcmp(src2roiReductionType,'mpower')
+     x_roi = sqrt(P*(X.^2));
 end
 end
 
