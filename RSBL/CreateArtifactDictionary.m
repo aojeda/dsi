@@ -18,7 +18,7 @@ plotIcon = imread([p filesep 'Gnome-emblem-photos.svg.png']);
                      
 uitoggletool(t,'CData',playIcon,'TooltipString','Run','OnCallback',@callback_run,'OffCallback',@callback_run);
 uitoggletool(t,'CData',plotIcon,'TooltipString','Vualize','OnCallback',@callback_plot,'OffCallback',@callback_plot);
-uitoggletool(t,'CData',saveIcon,'TooltipString','Save','OnCallback',@callback_save,'OffCallback',@callback_save);         
+uitoggletool(t,'CData',saveIcon,'TooltipString','Commit','OnCallback',@callback_save,'OffCallback',@callback_save);         
 uitoggletool(t,'CData',helpIcon,'TooltipString','Help','OnCallback',@callback_help,'OffCallback',@callback_help);
             
 pnt = uipanel(fig,'Units','normalized','Position',[0.0000    0.9428    1.0000    0.0570]);

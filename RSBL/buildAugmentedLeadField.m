@@ -14,6 +14,9 @@ function [H, Delta, blocks, indG, indV] = buildAugmentedLeadField(hm)
 Nroi = length(hm.atlas.label);
 [Ny,Ng] = size(hm.K);
 c = load('Artifact_dictionary.mat');
+if isfield(c,'Ai')
+    c.A = [c.A c.Ai];
+end
 templateFile = fullfile(fileparts(which('headModel.m')),'resources',[c.templateName '.mat']);
 template = headModel.loadFromFile(templateFile);
 %--
