@@ -51,15 +51,17 @@ labels_eeg = {EEG.chanlocs.labels};
 [~,loc] = intersect(lower(labels_eeg), lower(hm.labels),'stable');
 EEG = pop_select(EEG,'channel',loc);
 
+if size(hm.K,2) == 3*size(hm.cortex.vertices,1)
+    hm.K = -hm.K;   % Fix polarity bug (OpenMEEG seems to invert the polarity of dipoles when they are not normal to the cortex)
+end
+
 % Initialize the inverse solver
-% hm.K = -hm.K;
 if account4artifacts && exist('Artifact_dictionary.mat','file')
     [H, Delta, blocks, indG, indV] = buildAugmentedLeadField(hm);
 else
     norm_K = norm(hm.K);
     H = hm.K/norm_K;
     Delta = hm.L/norm_K;
-    % Delta = hm.L/43120/6;
     H = bsxfun(@rdivide,H,sqrt(sum(H.^2)));
     if size(H,2) == 3*size(hm.cortex.vertices,1)
         Delta = kron(eye(3),Delta);
@@ -84,7 +86,6 @@ else
         solver = RSBL(H, Delta, blocks);
     end
 end
-% solver = RSBL(H, Delta, blocks);
 solver.defaultOptions.verbose = false;
 if strcmp(solverType,'loreta')
     solver.defaultOptions.doPruning = false;
@@ -100,7 +101,8 @@ X_roi = zeros(Nroi, EEG.pnts, EEG.trials);
 
 prc_5 = round(linspace(1,EEG.pnts,30));
 iterations = 1:5:EEG.pnts;
-prc_10 = iterations(round(linspace(1,length(iterations),10)));
+prc_10 = iterations(round(linspace(1,length(iterations),11)));
+prc_10(1) = [];
 
 logE = zeros([EEG.pnts,EEG.trials]);
 lambda = zeros([EEG.pnts,EEG.trials]);
@@ -129,6 +131,8 @@ Yhat = EEG.data;
 % Perform source estimation
 fprintf('RSBL filtering...\n');
 for trial=1:EEG.trials
+    tic;
+%     textprogressbar(sprintf('Processing trial %i of %i...',trial, EEG.trials));
     fprintf('Processing trial %i of %i...',trial, EEG.trials);
     
     [X_k, lambda(1,trial),gamma_F(1,trial),gamma(:,1,trial), logE(1,trial)] = solver.update(EEG.data(:,1,trial), lambda0);
@@ -147,7 +151,6 @@ for trial=1:EEG.trials
               
         % Source estimation
         if ~mod(k,updateFreq)
-            %[dX, lambda(k,trial),gamma_F(k,trial),gamma(:,k,trial), logE(k,trial)] = solver.update(e, lambda(k-1,trial), gamma(:,k-1,trial));
             [~, lambda(k,trial),gamma_F(k,trial),gamma(:,k,trial), logE(k,trial)] = solver.update(e, lambda(k-1,trial), gamma(:,k-1,trial));
             K = solver.getK(lambda(k,trial), gamma(:,k,trial));
         else
@@ -156,11 +159,8 @@ for trial=1:EEG.trials
             gamma(:,k,trial) = gamma(:,k-1,trial);
             logE(k,trial) = logE(k-1,trial);
         end
-        dX = K*e;
-        
-        X_k = Xpred + dX;
+        X_k = Xpred + K*e;
         if saveFull
-            % X(:,k,trial) = Xpred + dX;
             X(:,k,trial) = X_k;
         end
         
@@ -178,6 +178,7 @@ for trial=1:EEG.trials
         if ~isempty(prc), fprintf('%i%%',prc*10);end
     end
     fprintf('\n');
+    toc
 end
 EEG.data = Yhat;
 EEG.etc.src.act = X_roi;
@@ -188,7 +189,6 @@ EEG.etc.src.H = H;
 EEG.etc.src.indG = indG;
 EEG.etc.src.indV = indV;
 EEG.etc.src.logE = logE;
-% EEG.etc.src.solver = solver;
 fprintf('done\n');
 
 if saveFull
@@ -205,22 +205,6 @@ EEG.history = char(EEG.history,['EEG = pop_rsbl(EEG, ' num2str(saveFull) ', ' nu
 disp('The source estimates were saved in EEG.etc.src');
 end
 
-
-%%
-function y = cleanData(H, X, indG, trial)
-try
-    y = H(:, indG)*X(indG,:, trial);
-catch
-    n = size(X,2);
-    y = zeros(size(H,1),n);
-    delta = min([1024 round(n/100)]);
-    for k=1:delta:n
-        ind = k:k+delta-1;
-        ind(ind>n) = [];
-        y(:,ind) = H(:, indG)*X(indG,ind, trial);
-    end
-end
-end
 
 %%
 function x_roi = computeSourceROI(X, hm, src2roiReductionType)

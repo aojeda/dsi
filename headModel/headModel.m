@@ -369,22 +369,18 @@ classdef headModel < handle
             end
                 
             % Locate OpenMEEG binaries
-            if ~isempty(strfind(computer,'PCWIN')) %#ok
-                
-                % on Windows
+            if ispc
                 if exist('C:\Program Files\OpenMEEG\bin\om_assemble.exe','file')
                     binDir = '"C:\Program Files\OpenMEEG\bin"';
                 elseif exist('C:\Program Files (x86)\OpenMEEG\bin\om_assemble.exe','file')
                     binDir = '"C:\Program Files (x86)\OpenMEEG\bin"';
                 elseif exist([pwd '\OpenMEEG\bin\om_assemble.exe'],'file')
-                    binDir = [pwd '\OpenMEEG\bin\'];
+                    binDir = fullfile(pwd, 'OpenMEEG\bin');
                 else
                     binDir = '';
                 end
                 
-            elseif ~isempty(strfind(computer,'MACI64')) %#ok
-                
-                % on Mac
+            elseif ismac
                 if exist('/usr/local/bin/om_assemble','file')
                     binDir = '"/usr/local/bin"';
                 else
@@ -399,16 +395,14 @@ classdef headModel < handle
                     binDir = '';
                 end
             end
-            
-            if ~exist(binDir,'dir')
-                binDir = input('Enter the full path to OpenMEEG\bin directory:');
+            if isempty(binDir)
+                binDir = input(['Enter the full path to OpenMEEG' filesep 'bin directory:']);
                 if ~exist(fullfile(binDir,'om_assemble.exe'),'file')
                     error('OpenMEEG:NoInstalled','Cannot locate OpenMEEG installation directory.\nClick on the link to download and install <a href="https://gforge.inria.fr/frs/?group_id=435">OpenMEEG</a>.');
                 end
             end
             
             tmpDir = tempdir;
-            
             [~,rname] = fileparts(tempname);
             headModelGeometry = fullfile(tmpDir,[rname '.geom']);
             try %#ok
@@ -490,9 +484,6 @@ classdef headModel < handle
 
             load(lfFile,'linop');
             obj.K = linop;
-%             if orientation
-%                 obj.K = -obj.K;
-%             end
             if exist(lfFile,'file'), delete(lfFile);end
             disp('Done.')
         end
