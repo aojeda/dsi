@@ -77,6 +77,9 @@ else
     normalize = 'false';
 end
 [n,m] = size(X);
+if n<m
+    X = repmat(X,ceil((m-n)/n)+1,1);
+end
 teCalc=javaObject('infodynamics.measures.continuous.kraskov.ConditionalTransferEntropyCalculatorKraskov');
 teCalc.setProperty('k', num2str(k));
 teCalc.setProperty('NORMALISE', normalize);
@@ -102,28 +105,40 @@ for c=1:Nc
         fprintf('%i%%',(prc_c)*10)
     end
     if findLag
-        for k=1:n
-            I(k) = mutualInformation(X(:,indJ(c)),circshift(X(:,indI(c)),k-1));
+%         for k=1:n
+%             I(k) = mutualInformation(X(:,indJ(c)),circshift(X(:,indI(c)),k-1));
+%         end
+        [acor,lag] = xcorr(X(:,indJ(c)),X(:,indI(c)));
+        [~,I] = max(abs(acor));
+        d = -lag(I);
+        theta(indJ(c),indI(c)) = d;
+        if theta(indJ(c),indI(c)) > n/2
+            d = (n-theta(indJ(c),indI(c)));
+            tmp = indI(c);
+            indI(c) = indJ(c);
+            indJ(c) = tmp;
+            theta(indJ(c),indI(c)) = d;
+            theta(indI(c),indJ(c)) = 0;
         end
         
-        % Find a significant delay
-        z = zscore(I);
-        d = find(z > norminv(1-(0.005/n)));
-        if ~isempty(d)
-            [~,loc] = max(z(d));
-            d = d(loc)-1;
-            theta(indJ(c),indI(c)) = d;
-            if theta(indJ(c),indI(c)) > n/2
-                d = (n-theta(indJ(c),indI(c)));
-                tmp = indI(c);
-                indI(c) = indJ(c);
-                indJ(c) = tmp;
-                theta(indJ(c),indI(c)) = d;
-                theta(indI(c),indJ(c)) = 0;
-            end
-        else
-            continue
-        end
+%         % Find a significant delay
+%         z = zscore(I);
+%         d = find(z > norminv(1-(0.005/n)));
+%         if ~isempty(d)
+%             [~,loc] = max(z(d));
+%             d = d(loc)-1;
+%             theta(indJ(c),indI(c)) = d;
+%             if theta(indJ(c),indI(c)) > n/2
+%                 d = (n-theta(indJ(c),indI(c)));
+%                 tmp = indI(c);
+%                 indI(c) = indJ(c);
+%                 indJ(c) = tmp;
+%                 theta(indJ(c),indI(c)) = d;
+%                 theta(indI(c),indJ(c)) = 0;
+%             end
+%         else
+%             continue
+%         end
     end
     teCalc.initialise(...
         1,1, ...                                        % Destination embedding length (Schreiber k=1) and delays
