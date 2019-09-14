@@ -30,7 +30,7 @@ if ~any(ismember({'bsbl','loreta'},solverType))
     solverType = 'bsbl';
 end
 updateFreq = max([1 updateFreq]);
-updateFreq = min([updateFreq round(0.02*EEG.srate)]);
+updateFreq = min([updateFreq round(0.08*EEG.srate)]);
 
 % Load the head model
 try
