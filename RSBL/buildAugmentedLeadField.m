@@ -13,7 +13,7 @@ function [H, Delta, blocks, indG, indV] = buildAugmentedLeadField(hm)
 
 Nroi = length(hm.atlas.label);
 [Ny,Ng] = size(hm.K);
-c = load('Artifact_dictionary.mat');
+c = load(fullfile(fileparts(which('RSBL')),'resources','Artifact_dictionary.mat'));
 if isfield(c,'Ai')
     c.A = [c.A c.Ai];
 end

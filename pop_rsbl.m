@@ -56,16 +56,16 @@ if size(hm.K,2) == 3*size(hm.cortex.vertices,1)
 end
 
 % Initialize the inverse solver
-if account4artifacts && exist('Artifact_dictionary.mat','file')
+if account4artifacts && exist(fullfile(fileparts(which('RSBL')),'resources','Artifact_dictionary.mat'),'file')
     [H, Delta, blocks, indG, indV] = buildAugmentedLeadField(hm);
 else
     norm_K = norm(hm.K);
     H = hm.K/norm_K;
     Delta = hm.L/norm_K;
     H = bsxfun(@rdivide,H,sqrt(sum(H.^2)));
+    blocks = hm.indices4Structure(hm.atlas.label);
     if size(H,2) == 3*size(hm.cortex.vertices,1)
         Delta = kron(eye(3),Delta);
-        blocks = hm.indices4Structure(hm.atlas.label);
         blocks = logical(kron(eye(3),blocks));
     end
     indG = (1:size(H,2))';
