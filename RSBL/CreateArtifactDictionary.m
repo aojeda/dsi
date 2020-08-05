@@ -37,9 +37,11 @@ tx.Position = [0.2102    0.0400    0.0844    0.8800];
 bt = uicontrol(pn,'style','pushbutton','string','K-MEANS','Units','normalized','callback',@callback_clustering);
 bt.Position = [0.3252         0    0.1388    1.0000];
 sel = uicontrol(pn,'style','text','string','Selection: ','Units','normalized');
-sel.Position = [0.5946    0.0    0.092    0.8000];
+sel.Position = [0.4865         0    0.0920    0.8000];
 sel_tx = uicontrol(pn,'style','edit','string','','Units','normalized');
-sel_tx.Position = [0.6865    0.0400    0.1973    0.8800];
+sel_tx.Position = [0.5872    0.0400    0.1973    0.8800];
+chk = uicontrol(pn,'style','checkbox','Units','normalized', 'string','Overwrite');
+chk.Position = [0.8124    0.04    0.1973    0.8800];
 end
 
 function callback_select(src,evnt)
@@ -72,7 +74,7 @@ jStatusBar.add(jProgressBar,'West');
 jRootPane.setStatusBar(jStatusBar);
 jStatusBar.setVisible(1);
 jStatusBar.setText('Running...');
-[M, Y, C, L] = buildArtifactDictionary({dataFolder}, jProgressBar);
+[M, Y, C, L, ICAact, ICApsd] = buildArtifactDictionary({dataFolder}, jProgressBar);
 jStatusBar.setText('');
 jStatusBar.setVisible(0);
 jProgressBar.setValue(0);
@@ -80,6 +82,10 @@ fig.UserData.M = M;
 fig.UserData.C = C;
 fig.UserData.L = L;
 fig.UserData.Y = Y;
+fig.UserData.ICAact = ICAact;
+fig.UserData.ICApsd = ICApsd;
+fig.UserData.Cact = [];
+fig.UserData.Cpsd = [];
 end
 
 function callback_plot(src,evnt)
@@ -91,12 +97,51 @@ bt = findall(fig,'string','K-MEANS');
 callback_clustering(bt);
 end
 
+function [cact, cpsd] = select_centroid_act(M, L, C, ICAact, ICApsd)
+cact = cell(size(C,2),1);
+cpsd = cell(size(C,2),1);
+for k=1:size(C,2)
+    sel = find(L==k);
+    [~, loc_mn] = min(sum((M(:, sel) - C(:,k)).^2, 1));
+    %cact{k} = ICAact{sel(loc_mn)};
+    %cpsd{k} = ICApsd{sel(loc_mn)};
+    cact{k} = ICAact(sel);
+    cpsd{k} = ICApsd(sel);
+end
+end
+
+function plot_ic(src, ~)
+figure; 
+subplot(211);
+for i=1:length(src.UserData)
+    plot(src.UserData(i).ic.time, src.UserData(i).ic.data);
+    if i==1
+        hold on;
+    end
+end
+xlabel('Time (sec)')
+ylabel('IC')
+grid()
+subplot(212);
+for i=1:length(src.UserData)
+    loglog(src.UserData(i).psd.freq, src.UserData(i).psd.data);
+    if i==1
+        hold on;
+    end
+end
+xlabel('Frequency (Hz)')
+ylabel('dB/Hz')
+grid()
+end
+
 function callback_clustering(src,evnt)
 fig = src.Parent.Parent;
+fig.Pointer='watch';
 tx = findall(findall(fig,'type','uipanel'),'style','edit');
 nc = str2double(get(tx(end-1),'String'));
-[L, C] = kmeans(fig.UserData.M',nc,'distance','sqeuclidean', 'Replicates',9);
+[L, C, e] = kmeans(fig.UserData.M',nc,'distance','sqeuclidean', 'Replicates',9);
 C = C';
+[fig.UserData.cact, fig.UserData.cpsd] = select_centroid_act(fig.UserData.M,L,C,fig.UserData.ICAact, fig.UserData.ICApsd);
 fig.UserData.C = C;
 fig.UserData.L = L;
 Y = tsne(fig.UserData.M','Distance','correlation','NumDimensions',2,'Verbose',1,'Options',struct('MaxIter',500,'OutputFcn',[],'TolFun',1e-10),'Perplexity',50);
@@ -122,7 +167,8 @@ for i=1:nc
     [ax_x,ax_y] = pol2cart(ang(i),0.85);
     axi = axes(fig,'Position',[ax_x/2+0.5-0.05,ax_y/2+0.5-0.05,0.1,0.1]);
     axes(axi); %#ok
-    topoplot(mean(M(:,L==i),2),chanlocs,'electrodes','off');
+    h = topoplot(mean(M(:,L==i),2),chanlocs,'electrodes','off');
+    set(h, 'ButtonDownFcn', @plot_ic, 'UserData', struct('ic', fig.UserData.cact{i}, 'psd', fig.UserData.cpsd{i}))
     title(num2str(i))
     AXi = [AXi axi];
     axis(axi,'on')
@@ -133,16 +179,27 @@ end
 for i=1:nc
     colormap(AXi(i),bipolar(256,0.8));
 end
+fig.Pointer='arrow';
 end
 
 function callback_save(src,evnt)
 fig = src.Parent.Parent;
 C = fig.UserData.C;
 tx = findall(fig,'style','edit');
+overwrite = findall(fig,'style','checkbox');
 ind = str2num(tx(1).String); %#ok
-Ai = C(:,ind);
 load('Artifact_dictionary.mat'); %#ok
-save(which('Artifact_dictionary.mat'),'A','Ai','templateName'); %#ok
+if overwrite.Value
+    [p,n] = fileparts(which('Artifact_dictionary.mat'));
+    if ~exist(fullfile(p,[n '_orig.mat']), 'file')
+        save(fullfile(p,[n '_orig.mat']),'A','templateName'); %#ok
+    end
+    A = C(:,ind);
+    save(which('Artifact_dictionary.mat'),'A','templateName'); 
+else
+    Ai = C(:,ind);
+    save(which('Artifact_dictionary.mat'),'A','Ai','templateName');
+end 
 end
 
 function callback_help(src,evnt)
