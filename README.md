@@ -2,7 +2,7 @@
 
 ![splash](https://github.com/aojeda/dsi/blob/master/doc/gui.png)
 
-The DSI toolbox for is a metapackage that combines the [headModel](https://github.com/aojeda/headModel#headmodel-toolbox-for-matlabeeglab) toolbox and the [Recursive Sparse Bayesian Learning](https://www.biorxiv.org/content/10.1101/559450v2) inverse filtering code into one coherent plugin for forward and inverse distributed source imaging within the [EEGLAB](https://sccn.ucsd.edu/eeglab/) environment.
+The DSI toolbox is a metapackage that combines the [headModel](https://github.com/aojeda/headModel#headmodel-toolbox-for-matlabeeglab) toolbox and the [Recursive Sparse Bayesian Learning](https://doi.org/10.1162/neco_a_01415) inverse filtering code into one coherent plugin for forward and inverse distributed source imaging within the [EEGLAB](https://sccn.ucsd.edu/eeglab/) environment.
 
 ## Install
 1. [Download](https://github.com/aojeda/dsi/archive/master.zip)
@@ -14,3 +14,6 @@ The DSI toolbox for is a metapackage that combines the [headModel](https://githu
 * Forward problem solver: [pop_forwardModel](https://github.com/aojeda/dsi/wiki/Forward-problem-solver)
 * Inverse problem solver: [pop_rsbl](https://github.com/aojeda/dsi/wiki/Inverse-problem-solver)
 * Visualization: [pop_eegbrowserx](https://github.com/aojeda/dsi/wiki/EEGBrowserX)
+
+## Cite as
+Alejandro Ojeda, Kenneth Kreutz-Delgado, Jyoti Mishra; Bridging M/EEG Source Imaging and Independent Component Analysis Frameworks Using Biologically Inspired Sparsity Priors. Neural Comput 2021; 33 (9): 2408–2438. doi: https://doi.org/10.1162/neco_a_01415
